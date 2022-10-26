@@ -29,6 +29,9 @@ if(QUERY_MARKER_COUNT > 25000){
 const formatLngLatObj = (lng, lat) => {return {lat, lng}};
 const formatValidRange = (low, high) => {return {low, high}};
 
+
+// can we add some stuff here...
+const centerPosition = formatLngLatObj(-122.65449, 45.54211); // 11th and Knott
 /**
  * 
  * @param {int} desiredMarkerCount - The number of desired individual markers data
@@ -100,15 +103,19 @@ function setMarker(GoogleMapInstance, lngLatObj){
 function initMap () {
     //set options - keep as simple as possible   
     const googleMapOptions = {
-        center: { lat: -77, lng: -51 },
-        zoom: 8,
+        center: centerPosition,
+        zoom: 3,
+        tilt: 0,
     }
 
     //  if in vector map, set the mapId to trigger vector map time
     if(isVectorView) googleMapOptions.mapId = VECTOR_MAP_ID;
 
+    console.log(googleMapOptions)
+
     // 🚀 send it!
     const googleMap = new google.maps.Map(elMapContainer, googleMapOptions);
+
     // save it to window for review
     window.GOOGLE_MAP = googleMap;
     
@@ -119,6 +126,92 @@ function initMap () {
          setMarker(googleMap, lngLat)
     });
 };
+
+/**
+ *
+ *  @description 
+ * * zooms in or out on a google map by updating the zoom level on options object.
+ * * takes a parameter, 0 for zoomin, 1 for zoomout
+ * @use 
+ * used as a callback in the javascript google maps script src attribute
+ * 
+ */
+function zoom(direction) {
+    // get the map object
+    const googleMap = window.GOOGLE_MAP;
+
+    // direction determines zoom in/out (0 = in, 1 = out)
+    if(direction == 1){
+        // zoom out
+        if(googleMap.zoom > 3)
+            googleMap.zoom -= 1
+    }else{
+        // zoom in
+        if(googleMap.zoom < 22)
+            googleMap.zoom += 1
+    }
+
+    // set the new options
+    googleMap.setOptions({
+        zoom: googleMap.zoom,
+        center: centerPosition,
+    })
+
+    // update the map
+    window.GOOGLE_MAP = googleMap;
+    
+}
+
+/**
+ *
+ *  @description 
+ *  calls the callback function, before returning from the settimeout promise
+ * @use 
+ *  creates the delayed experience for user while 'clicking' through
+ */
+function resolveAfter2seconds(cb) {
+
+    return new Promise(resolve => {
+        // zoom if we are supposed to zoom
+        if(cb)
+            cb()
+
+        setTimeout(() => {
+            resolve('resolved')
+        }, cb ? 250 : 500) // quarter second per click, half second wait between in/out
+
+    });
+}
+
+/**
+ *
+ *  @description 
+ * * automates zooming in, and zooming out
+ * @use 
+ * Used to automate zooming functionality
+ * 
+ */
+async function zoomHelper(){
+
+    // zoom in
+    for(let x = 0; x < 18; x++){
+        const result = await resolveAfter2seconds(zoom(0));
+        console.log(result)
+    }
+
+    // just wait
+    const value = await resolveAfter2seconds()
+
+    // zoom out
+    for(let x = 18; x > 0; x--){
+        const result = await resolveAfter2seconds(zoom(1));
+        console.log(result)
+    }
+}
+
+
+
+
 
 
 // Create the script tag, set the appropriate attributes/params
