@@ -9,6 +9,7 @@ const isVectorView = window.location.href.includes('/vector/');
 const urlSearchparams = new URLSearchParams(window.location.search);
 const QUERY_API_KEY = urlSearchparams.get('api_key');
 const VECTOR_MAP_ID = urlSearchparams.get('vector_map_id');
+const OPTIMIZE_MARKERS = urlSearchparams.get('optimize_markers');
 let QUERY_MARKER_COUNT = Number(urlSearchparams.get('marker_count'));
 
 // validate query params
@@ -23,6 +24,9 @@ if(QUERY_MARKER_COUNT > 25000){
     console.error("Marker_count must be 25000 or less. Defaulting to 25000 markers");
     QUERY_MARKER_COUNT = 25000;
 }
+
+// used for logging
+let initializing = true;
 
 
 // some basic helper functions to keep things readable and consistent
@@ -61,6 +65,29 @@ function generateMarkerData(desiredMarkerCount){
     return markerDataArr;
 }
 
+function setupPerformanceLogs(googleMap) {
+    let dragEvent = false;
+    googleMap.addListener('dragend', function() {
+        console.time('Dragend ➡️ Idle');
+        dragEvent = true;
+    });
+
+    googleMap.addListener('idle', function() {
+        if(dragEvent){
+            console.timeEnd('Dragend ➡️ Idle');
+            dragEvent = false;
+        }
+    });
+    
+    googleMap.addListener('tilesloaded', function() {
+        if(initializing){
+            console.timeEnd('Init ➡️ Tiles Loaded');
+            initializing = false;
+        }
+    });
+
+}
+
 
 /**
  * 
@@ -75,10 +102,16 @@ function setMarker(GoogleMapInstance, lngLatObj){
         window.GOOGLE_MARKERS_ARRAY = [];
     }
 
-    const newMarker = new google.maps.Marker({
+    const markerOptions = {
         position: lngLatObj,
-        map: GoogleMapInstance
-    });
+        map: GoogleMapInstance,
+    }
+
+    if(OPTIMIZE_MARKERS !== null){
+        markerOptions.optimize = OPTIMIZE_MARKERS === 'false' ? false : true;
+    }
+
+    const newMarker = new google.maps.Marker(markerOptions);
 
     window.GOOGLE_MARKERS_ARRAY.push(newMarker)
 }
@@ -98,10 +131,23 @@ function setMarker(GoogleMapInstance, lngLatObj){
  * 
  */
 function initMap () {
+    console.time('Init ➡️ Tiles Loaded');
+
     //set options - keep as simple as possible   
     const googleMapOptions = {
         center: { lat: -77, lng: -51 },
-        zoom: 8,
+        zoom: 3,
+        // prevents gray bars on pan
+        restriction: {
+            latLngBounds: {
+                north: 85,
+                south: -85,
+                west: -180,
+                east: 180
+            }
+        },
+        minZoom: 3,
+        maxZoom: 12,
     }
 
     //  if in vector map, set the mapId to trigger vector map time
@@ -118,6 +164,8 @@ function initMap () {
     markerDataArr.forEach((lngLat) => {
          setMarker(googleMap, lngLat)
     });
+
+    setupPerformanceLogs(googleMap);
 };
 
 
