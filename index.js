@@ -10,6 +10,7 @@ const urlSearchparams = new URLSearchParams(window.location.search);
 const QUERY_API_KEY = urlSearchparams.get('api_key');
 const VECTOR_MAP_ID = urlSearchparams.get('vector_map_id');
 const OPTIMIZE_MARKERS = urlSearchparams.get('optimize_markers');
+const ADVANCED_MARKERS = urlSearchparams.get('advanced_markers');
 let QUERY_MARKER_COUNT = Number(urlSearchparams.get('marker_count'));
 
 // validate query params
@@ -97,23 +98,23 @@ function setupPerformanceLogs(googleMap) {
  * @description Sets a marker on the map. Also appends the new marker data to the `window.GOOGLE_MARKERS_ARRAY` value.
  * 
  */
-function setMarker(GoogleMapInstance, lngLatObj){
+function setMarkers(GoogleMapInstance, markerData, markerInitializer){
     if(!window.GOOGLE_MARKERS_ARRAY){
         window.GOOGLE_MARKERS_ARRAY = [];
     }
 
     const markerOptions = {
-        position: lngLatObj,
         map: GoogleMapInstance,
     }
 
-    if(OPTIMIZE_MARKERS !== null){
+    if(OPTIMIZE_MARKERS !== null && !ADVANCED_MARKERS){
         markerOptions.optimize = OPTIMIZE_MARKERS === 'false' ? false : true;
     }
 
-    const newMarker = new google.maps.Marker(markerOptions);
-
-    window.GOOGLE_MARKERS_ARRAY.push(newMarker)
+    markerData.forEach((lngLat) => {
+        const newMarker = new markerInitializer({...markerOptions, position: lngLat})
+        window.GOOGLE_MARKERS_ARRAY.push(newMarker)
+    });
 }
 
 
@@ -130,8 +131,11 @@ function setMarker(GoogleMapInstance, lngLatObj){
  * used as a callback in the javascript google maps script src attribute
  * 
  */
-function initMap () {
+async function initMap () {
     console.time('Init ➡️ Tiles Loaded');
+
+    const { Map } = await google.maps.importLibrary("maps");
+    const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
 
     //set options - keep as simple as possible   
     const googleMapOptions = {
@@ -154,16 +158,14 @@ function initMap () {
     if(isVectorView) googleMapOptions.mapId = VECTOR_MAP_ID;
 
     // 🚀 send it!
-    const googleMap = new google.maps.Map(elMapContainer, googleMapOptions);
+    const googleMap = new Map(elMapContainer, googleMapOptions);
     // save it to window for review
     window.GOOGLE_MAP = googleMap;
     
     // generate marker data
     const markerDataArr = generateMarkerData(QUERY_MARKER_COUNT);
-
-    markerDataArr.forEach((lngLat) => {
-         setMarker(googleMap, lngLat)
-    });
+    const finalMarkerType = ADVANCED_MARKERS ? AdvancedMarkerElement : google.maps.Marker
+    setMarkers(googleMap, markerDataArr, finalMarkerType);
 
     setupPerformanceLogs(googleMap);
 };
