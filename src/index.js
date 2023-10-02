@@ -1,4 +1,4 @@
-
+import { MarkerClusterer } from "@googlemaps/markerclusterer";
 
 //cache that goodness
 const elMapContainer = document.getElementById("map-container");
@@ -10,6 +10,7 @@ const urlSearchparams = new URLSearchParams(window.location.search);
 const QUERY_API_KEY = urlSearchparams.get('api_key');
 const VECTOR_MAP_ID = urlSearchparams.get('vector_map_id');
 const OPTIMIZE_MARKERS = urlSearchparams.get('optimize_markers');
+const CLUSTER_ENABLED = urlSearchparams.get('cluster');
 const ADVANCED_MARKERS = urlSearchparams.get('advanced_markers');
 let QUERY_MARKER_COUNT = Number(urlSearchparams.get('marker_count'));
 
@@ -28,7 +29,6 @@ if(QUERY_MARKER_COUNT > 25000){
 
 // used for logging
 let initializing = true;
-
 
 // some basic helper functions to keep things readable and consistent
 const formatLngLatObj = (lng, lat) => {return {lat, lng}};
@@ -68,18 +68,33 @@ function generateMarkerData(desiredMarkerCount){
 
 function setupPerformanceLogs(googleMap) {
     let dragEvent = false;
+    let zoomEvent = false;
+
     googleMap.addListener('dragend', function() {
-        console.time('Dragend ➡️ Idle');
-        dragEvent = true;
+        if(!dragEvent){
+            console.time('Dragend ➡️ Idle');
+            dragEvent = true;
+        }
     });
+
+    googleMap.addListener('zoom_changed', function() {
+        if(!zoomEvent){
+            console.time('Zoom_changed ➡️ Idle');
+            zoomEvent = true;
+        }
+    })
 
     googleMap.addListener('idle', function() {
         if(dragEvent){
             console.timeEnd('Dragend ➡️ Idle');
             dragEvent = false;
         }
+        if(zoomEvent){
+            console.timeEnd('Zoom_changed ➡️ Idle');
+            zoomEvent = false;
+        }
     });
-    
+
     googleMap.addListener('tilesloaded', function() {
         if(initializing){
             console.timeEnd('Init ➡️ Tiles Loaded');
@@ -90,33 +105,30 @@ function setupPerformanceLogs(googleMap) {
 }
 
 
-/**
- * 
- * @param {instance} GoogleMapInstance 
- * @param {object} lngLatObj 
- * 
- * @description Sets a marker on the map. Also appends the new marker data to the `window.GOOGLE_MARKERS_ARRAY` value.
- * 
- */
-function setMarkers(GoogleMapInstance, markerData, markerInitializer){
+function createMarkers(markerData, markerInitializer){
     if(!window.GOOGLE_MARKERS_ARRAY){
         window.GOOGLE_MARKERS_ARRAY = [];
     }
 
     const markerOptions = {
-        map: GoogleMapInstance,
     }
 
     if(OPTIMIZE_MARKERS !== null && !ADVANCED_MARKERS){
         markerOptions.optimize = OPTIMIZE_MARKERS === 'false' ? false : true;
     }
 
-    markerData.forEach((lngLat) => {
+    const markers = markerData.map((lngLat) => {
         const newMarker = new markerInitializer({...markerOptions, position: lngLat})
-        window.GOOGLE_MARKERS_ARRAY.push(newMarker)
+        return newMarker
     });
+
+    window.GOOGLE_MARKERS_ARRAY = markers;
+    return markers;
 }
 
+function addMarkersToMap(){
+    window.GOOGLE_MARKERS_ARRAY.forEach((marker) => marker.setMap(window.GOOGLE_MAP));
+}
 
 /**
  *
@@ -165,11 +177,18 @@ async function initMap () {
     // generate marker data
     const markerDataArr = generateMarkerData(QUERY_MARKER_COUNT);
     const finalMarkerType = ADVANCED_MARKERS ? AdvancedMarkerElement : google.maps.Marker
-    setMarkers(googleMap, markerDataArr, finalMarkerType);
+    const markers = createMarkers(markerDataArr, finalMarkerType);  
+
+    if(CLUSTER_ENABLED){
+        window.CLUSTERER = new MarkerClusterer({map: googleMap, markers});
+    } else {
+        addMarkersToMap(googleMap, markers);
+    }
 
     setupPerformanceLogs(googleMap);
 };
 
+window.initMap = initMap;
 
 // Create the script tag, set the appropriate attributes/params
 const elScript = document.createElement('script');
@@ -177,5 +196,3 @@ elScript.src = `https://maps.googleapis.com/maps/api/js?key=${QUERY_API_KEY}&cal
 elScript.async = true;
 // Append the 'script' element to 'head'
 document.head.appendChild(elScript);
-
-
