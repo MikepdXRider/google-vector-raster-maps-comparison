@@ -4,7 +4,8 @@ A light-weight app built to view/test the performance of Google's Vector v. Rast
 ### Setting up local environment/server
 - Clone repo down into local system
 - `npm i` in terminal
-- Launch live/local server - Recommend using [Live Server Extension](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) for easy live/local server management. 
+- `npm run start` to compile javascript and build live server.
+- `npm run build` to compile javascript. 
 
 ### Things you'll need
 - In order to generate a raster and vector map, you will need a [Google Maps API Key](https://developers.google.com/maps/documentation/javascript/get-api-key?hl=en#create-api-keys). 
@@ -23,8 +24,9 @@ To present an easy-to-use API for initializing and viewing maps, all necessary i
 - Marker count is limited to 25000 markers. If a value larger than 25000 is passed in the 'marker_count' param, the map will only render 25000 markers. 
 ### Helpful Resources
 - [Google Maps Javascript API Documentation](https://developers.google.com/maps/documentation/javascript)
+- [Google Marker Clustering](https://developers.google.com/maps/documentation/javascript/marker-clustering)
 - [Google Markers Examples](https://developers.google.com/maps/documentation/javascript/examples/marker-simple)
 - [Google Map Examples](https://developers.google.com/maps/documentation/javascript/examples/map-simple)
-
+- [Webpack](https://webpack.js.org/)
 
 
